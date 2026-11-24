@@ -1,0 +1,73 @@
+public class CliProcessRunner
+{
+    public event EventHandler<string>? LineReceived;
+    public event EventHandler? ProcessExited;
+
+    public async Task<int> RunAsync(string fileName, string arguments, CancellationToken token)
+    {
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            StandardOutputEncoding = Encoding.UTF8 // Решение проблемы кодировки
+        };
+
+        using var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
+        process.OutputDataReceived += (s, e) => 
+        {
+            if (e.Data != null) 
+            {
+                // Очистка от управляющих символов \r
+                var cleanLine = e.Data.Replace("\r", "").Trim();
+                LineReceived?.Invoke(this, cleanLine);
+            }
+        };
+        process.ErrorDataReceived += (s, e) => 
+        {
+            if (e.Data != null) LineReceived?.Invoke(this, $"[ERR] {e.Data}");
+        };
+
+        process.Exited += (s, e) => ProcessExited?.Invoke(this, EventArgs.Empty);
+
+        process.Start();
+        process.BeginOutputReadLine();
+        process.BeginErrorReadLine();
+
+        await process.WaitForExitAsync(token);
+        return process.ExitCode;
+    }
+}
+
+public static class GeneratedAppModifier
+{
+    public static bool PatchProgramCs(string programCsPath)
+    {
+        if (!File.Exists(programCsPath)) return false;
+        
+        var lines = File.ReadAllLines(programCsPath).ToList();
+        bool modified = false;
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            // Замена чтения из консоли на аргумент
+            if (lines[i].Contains("var input = Console.ReadLine();"))
+            {
+                lines[i] = "            var input = args.Length > 0 ? args[0] : \"\";";
+                modified = true;
+            }
+            // Замена вывода на машиночитаемый формат
+            if (lines[i].Contains("Console.WriteLine(prediction.Prediction);"))
+            {
+                lines[i] = "            Console.WriteLine($\"Prediction: {prediction.Prediction}, Probability: {prediction.Score.Max()}\");";
+                modified = true;
+            }
+        }
+
+        if (modified) File.WriteAllLines(programCsPath, lines);
+        return modified;
+    }
+}
