@@ -42,32 +42,4 @@ public class CliProcessRunner
     }
 }
 
-public static class GeneratedAppModifier
-{
-    public static bool PatchProgramCs(string programCsPath)
-    {
-        if (!File.Exists(programCsPath)) return false;
-        
-        var lines = File.ReadAllLines(programCsPath).ToList();
-        bool modified = false;
 
-        for (int i = 0; i < lines.Count; i++)
-        {
-            // Замена чтения из консоли на аргумент
-            if (lines[i].Contains("var input = Console.ReadLine();"))
-            {
-                lines[i] = "            var input = args.Length > 0 ? args[0] : \"\";";
-                modified = true;
-            }
-            // Замена вывода на машиночитаемый формат
-            if (lines[i].Contains("Console.WriteLine(prediction.Prediction);"))
-            {
-                lines[i] = "            Console.WriteLine($\"Prediction: {prediction.Prediction}, Probability: {prediction.Score.Max()}\");";
-                modified = true;
-            }
-        }
-
-        if (modified) File.WriteAllLines(programCsPath, lines);
-        return modified;
-    }
-}
